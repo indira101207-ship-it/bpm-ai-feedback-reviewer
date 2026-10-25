@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Feedback Reviewer | BPM</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f3f6fc;color:#18243b;margin:0;padding:24px}
+main{max-width:800px;margin:auto}
+header{background:#19356b;color:white;padding:28px;border-radius:16px}
+section{background:white;padding:24px;border-radius:14px;margin-top:18px}
+label{display:block;font-weight:bold;margin:16px 0 8px}
+select,textarea{width:100%;padding:12px;border:1px solid #ccd4e1;border-radius:8px;box-sizing:border-box;font:inherit}
+textarea{height:140px}
+button{background:#2858d7;color:white;border:0;border-radius:8px;padding:13px 20px;cursor:pointer;margin-top:14px}
+button:disabled{opacity:.6}
+.card{border:1px solid #e0e5ef;border-radius:10px;padding:14px;margin-top:12px;overflow-wrap:anywhere}
+.muted{color:#63718a;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+<header>
+<p>BUSINESS PROCESS MANAGEMENT PROJECT</p>
+<h1>AI Feedback Reviewer</h1>
+<p>Turn feedback into actionable business improvements.</p>
+</header>
+<section>
+<h2>Analyze feedback</h2>
+<form id="form">
+<label for="process">Business process</label>
+<select id="process">
+<option>Order Fulfilment</option>
+<option>Customer Support</option>
+<option>Inventory Management</option>
+<option>Human Resources</option>
+<option>Billing and Payments</option>
+<option>Delivery and Logistics</option>
+<option>Other / Not Sure</option>
+</select>
+<label for="feedback">Customer or employee feedback</label>
+<textarea id="feedback" maxlength="5000" required
+placeholder="Describe the experience or business problem..."></textarea>
+<p class="muted" id="count">0/5000 characters</p>
+<button id="submit">Analyze with AI →</button>
+</form>
+<p id="status" role="status"></p>
+</section>
+<section id="results" hidden>
+<h2>Analysis results</h2>
+<div id="summary" class="card"></div>
+<div id="details" class="card"></div>
+<div class="card"><h3>Recommendations</h3><ol id="recommendations"></ol></div>
+<div class="card"><h3>Suggested KPI</h3><p id="kpi"></p></div>
+<p id="caution" class="muted"></p>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+$("feedback").addEventListener("input",()=>{
+ $("count").textContent=$("feedback").value.length+"/5000 characters";
+});
+function add(parent,tag,text){
+ const el=document.createElement(tag);
+ el.textContent=text||"Not provided";
+ parent.appendChild(el);
+ return el;
+}
+$("form").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const feedback=$("feedback").value.trim();
+ if(feedback.length<10){$("status").textContent="Enter at least 10 characters.";return;}
+ $("submit").disabled=true;
+ $("status").textContent="Analyzing feedback...";
+ $("results").hidden=true;
+ try{
+  const response=await fetch("/api/analyze",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({feedback,process:$("process").value})
+  });
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||"Analysis failed.");
+  $("summary").replaceChildren();
+  $("details").replaceChildren();
+  $("recommendations").replaceChildren();
+  add($("summary"),"p",data.summary);
+  add($("summary"),"p","Sentiment: "+data.sentiment+" | Priority: "+data.priority);
+  add($("details"),"h3","Business process");
+  add($("details"),"p",data.process);
+  add($("details"),"h3","Possible root cause");
+  add($("details"),"p",data.rootCause);
+  (Array.isArray(data.recommendations)?data.recommendations:[])
+   .forEach(item=>add($("recommendations"),"li",item));
+  $("kpi").textContent=data.kpi||"Not provided";
+  $("caution").textContent=data.caution||"";
+  $("results").hidden=false;
+  $("status").textContent="Analysis complete.";
+ }catch(err){$("status").textContent=err.message;}
+ finally{$("submit").disabled=false;}
+});
+</script>
+</body>
+</html>
